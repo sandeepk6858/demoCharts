@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import type { ReactElement } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,13 +10,16 @@ import {
   Title,
   Legend,
   Filler,
-  ChartEvent,
-  ActiveElement,
-  ChartType,
-  Chart as ChartInstance,
+  type ChartEvent,
+  // type ActiveElement,
+  // type ChartType,
+  // Chart,
+
 } from 'chart.js';
+
+import type {  ActiveElement } from "chart.js";
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line, Bar, } from 'react-chartjs-2';
 
 // Register Chart.js components and plugins
 ChartJS.register(
@@ -86,7 +90,7 @@ const data = {
 // Main App component for rendering the chart and controls
 function App() {
   // Chart reference for accessing Chart.js instance
-  const chartRef = useRef<ChartInstance<'line' | 'bar'> | null>(null);
+  const chartRef = useRef<ChartJS<'line' | 'bar', number[], unknown> | null>(null);
   // Reference to the chart container for positioning elements
   const containerRef = useRef<HTMLDivElement>(null);
   // State for chart type (line or bar)
@@ -170,6 +174,7 @@ function App() {
 
   // Handle clicks on chart points or bars to show annotation popup
   const handlePointClick = (event: ChartEvent, activeElements: ActiveElement[]) => {
+    console.log("event", event)
     if (activeElements.length > 0 && chartRef.current && containerRef.current) {
       const chart = chartRef.current;
       const element = activeElements[0];
@@ -208,13 +213,26 @@ function App() {
   const highlightDataset = (datasetIndex: number) => {
     if (!chartRef.current) return;
     const chart = chartRef.current;
-    chart.data.datasets.forEach((ds, idx) => {
-      // Increase border width for the selected dataset
-      chart.getDatasetMeta(idx).dataset.options.borderWidth = idx === datasetIndex ? 4 : 2;
-      chart.getDatasetMeta(idx).dataset.options.borderColor = ds.borderColor;
-      if (chartType === 'bar') {
+    chart.data.datasets.forEach((ds: any, idx: any) => {
+      const meta = chart.getDatasetMeta(idx);
+
+      if (!meta || !meta.dataset) return; // ✅ safety check
+
+      // TypeScript: dataset options are loosely typed, so we cast to any
+      const datasetOptions = meta.dataset.options as any;
+
+      // Highlight border width
+      datasetOptions.borderWidth = idx === datasetIndex ? 4 : 2;
+
+      // Preserve original border color
+      datasetOptions.borderColor = ds.borderColor;
+
+      if (chartType === "bar") {
         // Adjust bar opacity for highlighting
-        chart.getDatasetMeta(idx).dataset.options.backgroundColor = idx === datasetIndex ? ds.backgroundColor : ds.backgroundColor + '80';
+        datasetOptions.backgroundColor =
+          idx === datasetIndex
+            ? ds.backgroundColor
+            : `${ds.backgroundColor}80`; // add alpha
       }
     });
     chart.update();
@@ -226,7 +244,7 @@ function App() {
     const chart = chartRef.current;
 
     // Increase border width for the selected dataset
-    chart.data.datasets.forEach((ds, idx) => {
+    chart.data.datasets.forEach((ds: any, idx: any) => {
       ds.borderWidth = idx === datasetIndex ? 4 : 2;
     });
 
@@ -236,9 +254,12 @@ function App() {
     const point = meta.data[dataIndex];
 
     // Set clicked point and show annotation popup
+    const datasetElement = meta.data[dataIndex];
+    const element = datasetElement as PointElement | BarElement | undefined;
+
     setClickedPoint({
-      x: point.x || meta.data[dataIndex].element?.x || 0,
-      y: point.y || meta.data[dataIndex].element?.y || 0,
+      x: point?.x ?? element?.x ?? 0,
+      y: point?.y ?? element?.y ?? 0,
       datasetIndex,
       dataIndex,
     });
@@ -346,17 +367,17 @@ function App() {
       <div style={{ position: 'relative', height: '500px' }}>
         {chartType === 'line' ? (
           <Line
-            ref={chartRef}
+            ref={chartRef as any}
             key="line"
-            options={{ ...options, onClick: handlePointClick }}
+            options={{ ...options, onClick: handlePointClick } as any}
             data={data}
             plugins={[ChartDataLabels]}
           />
         ) : (
           <Bar
-            ref={chartRef}
+            ref={chartRef as any}
             key="bar"
-            options={{ ...options, onClick: handlePointClick }}
+            options={{ ...options, onClick: handlePointClick } as any}
             data={data}
             plugins={[ChartDataLabels]}
           />
@@ -582,7 +603,7 @@ interface ChartTypeToggleProps {
 
 function ChartTypeToggle({ chartType, setChartType }: ChartTypeToggleProps) {
   // Icons for line and bar chart buttons
-  const icons: Record<'line' | 'bar', JSX.Element> = {
+  const icons: Record<'line' | 'bar', ReactElement> = {
     line: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
