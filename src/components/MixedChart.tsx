@@ -10,7 +10,7 @@ interface ChartState {
     options: ApexOptions;
 }
 const MixedChart = () => {
-    const [state, setState] = useState<ChartState>({
+    const [state] = useState<ChartState>({
 
         series: [{
             name: 'Income',
